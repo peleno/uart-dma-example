@@ -50,10 +50,10 @@ DMA_HandleTypeDef hdma_usart3_tx;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_USART3_UART_Init(void);
 static void MX_DMA_Init(void);
+static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
-
+void DMATransferComplete(DMA_HandleTypeDef *hdma);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -68,10 +68,10 @@ static void MX_DMA_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-    uint8_t buffer[] = "Long boat holystone pirate log driver hulk nipperkin cog. " \
-                       "Buccaneer me lass poop deck spyglass maroon jib spike. Come" \
-                       "about maroon skysail Corsair bilge water Arr long clothes " \
-                       "transom.\r\n";
+    char msg[] = "Long boat holystone pirate log driver hulk nipperkin cog. "
+            "Buccaneer me lass poop deck spyglass maroon jib spike. Come"
+            "about maroon skysail Corsair bilge water Arr long clothes "
+            "transom.\r\n";
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -92,19 +92,21 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_USART3_UART_Init();
   MX_DMA_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
+    HAL_DMA_RegisterCallback(&hdma_usart3_tx, HAL_DMA_XFER_CPLT_CB_ID,
+            &DMATransferComplete);
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
     while (1) {
-        strcpy((char*) buffer, "Hello!\r\n");
-        HAL_UART_Transmit(&huart3, buffer, strlen((char*) buffer),
-                HAL_MAX_DELAY);
-        HAL_Delay(2000);
+        huart3.Instance->CR3 |= USART_CR3_DMAT;
+        HAL_DMA_Start_IT(&hdma_usart3_tx, (uint32_t) msg,
+                (uint32_t) &huart3.Instance->DR, strlen(msg));
+        HAL_Delay(15000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -226,7 +228,13 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void DMATransferComplete(DMA_HandleTypeDef *hdma) {
+    // Disable UART DMA mode
+    huart3.Instance->CR3 &= ~USART_CR3_DMAT;
 
+    // Toggle LD1
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
+}
 /* USER CODE END 4 */
 
 /**
