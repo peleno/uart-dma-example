@@ -72,6 +72,7 @@ void dma_receive_second_byte(DMA_HandleTypeDef *hdma);
 void add_byte_to_rx_buffer(uint8_t rx_byte);
 void usart3_transmit_formatted_string(const char *format, ...);
 void usart3_transmit_adc_message();
+void toggle_led1();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -128,8 +129,12 @@ int main(void) {
             if (strcmp(uart_rx_buffer, "adc") == 0) {
                 usart3_transmit_adc_message();
             }
+
+            else if (strncmp(uart_rx_buffer, "led", 3) == 0 && strlen(uart_rx_buffer) == 3) {
+                toggle_led1();
+            }
             usart3_transmit_formatted_string("You sent: %s\n\r",
-                    (char*) uart_rx_buffer);
+                               (char*) uart_rx_buffer);
             uart_rx_buffer_index = 0;
             is_receiving_complete = false;
         }
@@ -329,6 +334,10 @@ void usart3_transmit_adc_message() {
     HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
     raw_adc_value = HAL_ADC_GetValue(&hadc1);
     usart3_transmit_formatted_string("Raw ADC value: %hu\n\r", raw_adc_value);
+}
+
+void toggle_led1() {
+    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
 }
 /* USER CODE END 4 */
 
