@@ -25,6 +25,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdarg.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -69,6 +70,8 @@ static void MX_ADC1_Init(void);
 void dma_receive_first_byte(DMA_HandleTypeDef *hdma);
 void dma_receive_second_byte(DMA_HandleTypeDef *hdma);
 void add_byte_to_rx_buffer(uint8_t rx_byte);
+void usart3_transmit_formatted_string(const char *format, ...);
+void usart3_transmit_adc_message();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -82,7 +85,7 @@ void add_byte_to_rx_buffer(uint8_t rx_byte);
  */
 int main(void) {
     /* USER CODE BEGIN 1 */
-    uint16_t raw_adc_value;
+
     /* USER CODE END 1 */
 
     /* MCU Configuration--------------------------------------------------------*/
@@ -103,8 +106,8 @@ int main(void) {
 
     /* Initialize all configured peripherals */
     MX_GPIO_Init();
-    MX_USART3_UART_Init();
     MX_DMA_Init();
+    MX_USART3_UART_Init();
     MX_ADC1_Init();
     /* USER CODE BEGIN 2 */
 
@@ -120,21 +123,13 @@ int main(void) {
     /* Infinite loop */
     /* USER CODE BEGIN WHILE */
     while (1) {
-        if (strcpy(uart_rx_buffer, "adc") == 0) {
-            // adc command received
-            HAL_ADC_Start(&hadc1);
-            HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-            raw_adc_value = HAL_ADC_GetValue(&hadc1);
-            sprintf((char*) uart_tx_buffer, "Raw ADC value: %hu\n\r",
-                    raw_adc_value);
-            HAL_UART_Transmit(&huart3, uart_tx_buffer, TX_BUFFER_SIZE, 100);
-        }
         HAL_Delay(10);
         if (is_receiving_complete) {
-
-            sprintf((char*) uart_tx_buffer, "You sent: %s\n\r",
+            if (strcmp(uart_rx_buffer, "adc") == 0) {
+                usart3_transmit_adc_message();
+            }
+            usart3_transmit_formatted_string("You sent: %s\n\r",
                     (char*) uart_rx_buffer);
-            HAL_UART_Transmit(&huart3, uart_tx_buffer, TX_BUFFER_SIZE, 100);
             uart_rx_buffer_index = 0;
             is_receiving_complete = false;
         }
@@ -312,7 +307,6 @@ void dma_receive_second_byte(DMA_HandleTypeDef *hdma) {
 }
 
 void add_byte_to_rx_buffer(uint8_t rx_byte) {
-    HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_0);
     if (rx_byte == '\r') {
         is_receiving_complete = true;
         uart_rx_buffer[uart_rx_buffer_index] = '\0';
@@ -320,6 +314,21 @@ void add_byte_to_rx_buffer(uint8_t rx_byte) {
         uart_rx_buffer[uart_rx_buffer_index] = rx_byte;
         uart_rx_buffer_index++;
     }
+}
+
+void usart3_transmit_formatted_string(const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    vsprintf((char*) uart_tx_buffer, format, args);
+    HAL_UART_Transmit(&huart3, uart_tx_buffer, strlen(uart_tx_buffer), 100);
+}
+
+void usart3_transmit_adc_message() {
+    uint16_t raw_adc_value;
+    HAL_ADC_Start(&hadc1);
+    HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+    raw_adc_value = HAL_ADC_GetValue(&hadc1);
+    usart3_transmit_formatted_string("Raw ADC value: %hu\n\r", raw_adc_value);
 }
 /* USER CODE END 4 */
 
