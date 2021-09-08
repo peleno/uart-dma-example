@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdarg.h>
+#include "pt.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -59,6 +60,8 @@ uint8_t uart_tx_buffer[TX_BUFFER_SIZE] = { 0 };
 uint8_t uart_rx_dma_buffer[RX_DMA_BUFFER_SIZE] = { 0 };
 
 volatile bool is_receiving_complete = false;
+volatile bool is_adc_command_received = false;
+struct pt pt;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -72,13 +75,30 @@ void dma_receive_first_byte(DMA_HandleTypeDef *hdma);
 void dma_receive_second_byte(DMA_HandleTypeDef *hdma);
 void add_byte_to_rx_buffer(uint8_t rx_byte);
 void usart2_transmit_formatted_string(const char *format, ...);
-void usart2_transmit_adc_message();
 void toggle_led1();
+bool adc_conversion_ended(ADC_HandleTypeDef* hadc);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+PT_THREAD(usart2_transmit_adc_message(struct pt *pt)) {
+    PT_BEGIN(pt);
+    uint16_t raw_adc_value;
+    HAL_ADC_Start(&hadc1);
+//    HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+    PT_WAIT_UNTIL(pt, adc_conversion_ended(&hadc1));
 
+    /* Clear regular group conversion flag */
+    __HAL_ADC_CLEAR_FLAG(&hadc1, ADC_FLAG_STRT | ADC_FLAG_EOC);
+
+    /* Update ADC state machine */
+    SET_BIT(hadc1.State, HAL_ADC_STATE_REG_EOC);
+
+    raw_adc_value = HAL_ADC_GetValue(&hadc1);
+    usart2_transmit_formatted_string("Raw ADC value: %hu\n\r", raw_adc_value);
+    is_adc_command_received = false;
+    PT_END(pt);
+}
 /* USER CODE END 0 */
 
 /**
@@ -113,7 +133,7 @@ int main(void)
   MX_USART2_UART_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
-
+  PT_INIT(&pt);
     HAL_DMA_RegisterCallback(&hdma_usart2_rx, HAL_DMA_XFER_HALFCPLT_CB_ID,
             &dma_receive_first_byte);
     HAL_DMA_RegisterCallback(&hdma_usart2_rx, HAL_DMA_XFER_CPLT_CB_ID,
@@ -129,13 +149,16 @@ int main(void)
 //        HAL_UART_Transmit(&huart2, "hello", 5, 100);
 //        HAL_Delay(1000);
         if (is_receiving_complete) {
-            toggle_led1();
             if (strcmp(uart_rx_buffer, "adc") == 0) {
-                usart2_transmit_adc_message();
+                is_adc_command_received = true;
             }
 
             else if (strncmp(uart_rx_buffer, "led", 3) == 0 && strlen(uart_rx_buffer) == 3) {
                 toggle_led1();
+            }
+
+            if (is_adc_command_received) {
+                usart2_transmit_adc_message(&pt);
             }
             usart2_transmit_formatted_string("You sent: %s\n\r",
                                (char*) uart_rx_buffer);
@@ -341,16 +364,51 @@ void usart2_transmit_formatted_string(const char *format, ...) {
     HAL_UART_Transmit(&huart2, uart_tx_buffer, strlen(uart_tx_buffer), 100);
 }
 
-void usart2_transmit_adc_message() {
-    uint16_t raw_adc_value;
-    HAL_ADC_Start(&hadc1);
-    HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-    raw_adc_value = HAL_ADC_GetValue(&hadc1);
-    usart2_transmit_formatted_string("Raw ADC value: %hu\n\r", raw_adc_value);
-}
+
 
 void toggle_led1() {
     HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_12);
+}
+
+bool adc_conversion_ended(ADC_HandleTypeDef* hadc) {
+    return __HAL_ADC_GET_FLAG(hadc, ADC_FLAG_EOC);
+}
+
+HAL_StatusTypeDef HAL_ADC_PollForConversion_custom(ADC_HandleTypeDef* hadc, uint32_t Timeout)
+{
+  /* Check End of conversion flag */
+  while(!(__HAL_ADC_GET_FLAG(hadc, ADC_FLAG_EOC)))
+  {
+  }
+
+  /* Clear regular group conversion flag */
+  __HAL_ADC_CLEAR_FLAG(hadc, ADC_FLAG_STRT | ADC_FLAG_EOC);
+
+  /* Update ADC state machine */
+  SET_BIT(hadc->State, HAL_ADC_STATE_REG_EOC);
+
+  /* Determine whether any further conversion upcoming on group regular       */
+  /* by external trigger, continuous mode or scan sequence on going.          */
+  /* Note: On STM32F4, there is no independent flag of end of sequence.       */
+  /*       The test of scan sequence on going is done either with scan        */
+  /*       sequence disabled or with end of conversion flag set to            */
+  /*       of end of sequence.                                                */
+  if(ADC_IS_SOFTWARE_START_REGULAR(hadc)                   &&
+     (hadc->Init.ContinuousConvMode == DISABLE)            &&
+     (HAL_IS_BIT_CLR(hadc->Instance->SQR1, ADC_SQR1_L) ||
+      HAL_IS_BIT_CLR(hadc->Instance->CR2, ADC_CR2_EOCS)  )   )
+  {
+    /* Set ADC state */
+    CLEAR_BIT(hadc->State, HAL_ADC_STATE_REG_BUSY);
+
+    if (HAL_IS_BIT_CLR(hadc->State, HAL_ADC_STATE_INJ_BUSY))
+    {
+      SET_BIT(hadc->State, HAL_ADC_STATE_READY);
+    }
+  }
+
+  /* Return ADC state */
+  return HAL_OK;
 }
 /* USER CODE END 4 */
 
