@@ -81,23 +81,24 @@ bool adc_conversion_ended(ADC_HandleTypeDef* hadc);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-PT_THREAD(usart2_transmit_adc_message(struct pt *pt)) {
-    PT_BEGIN(pt);
-    uint16_t raw_adc_value;
-    HAL_ADC_Start(&hadc1);
-//    HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-    PT_WAIT_UNTIL(pt, adc_conversion_ended(&hadc1));
+PT_THREAD(usart2_transmit_adc_message(struct pt *pt))
+{
+  PT_BEGIN(pt);
+  uint16_t raw_adc_value;
+  HAL_ADC_Start(&hadc1);
+  // HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+  PT_WAIT_UNTIL(pt, adc_conversion_ended(&hadc1));
 
-    /* Clear regular group conversion flag */
-    __HAL_ADC_CLEAR_FLAG(&hadc1, ADC_FLAG_STRT | ADC_FLAG_EOC);
+  /* Clear regular group conversion flag */
+  __HAL_ADC_CLEAR_FLAG(&hadc1, ADC_FLAG_STRT | ADC_FLAG_EOC);
 
-    /* Update ADC state machine */
-    SET_BIT(hadc1.State, HAL_ADC_STATE_REG_EOC);
+  /* Update ADC state machine */
+  SET_BIT(hadc1.State, HAL_ADC_STATE_REG_EOC);
 
-    raw_adc_value = HAL_ADC_GetValue(&hadc1);
-    usart2_transmit_formatted_string("Raw ADC value: %hu\n\r", raw_adc_value);
-    is_adc_command_received = false;
-    PT_END(pt);
+  raw_adc_value = HAL_ADC_GetValue(&hadc1);
+  usart2_transmit_formatted_string("Raw ADC value: %hu\n\r", raw_adc_value);
+  is_adc_command_received = false;
+  PT_END(pt);
 }
 /* USER CODE END 0 */
 
@@ -134,38 +135,36 @@ int main(void)
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
   PT_INIT(&pt);
-    HAL_DMA_RegisterCallback(&hdma_usart2_rx, HAL_DMA_XFER_HALFCPLT_CB_ID,
-            &dma_receive_first_byte);
-    HAL_DMA_RegisterCallback(&hdma_usart2_rx, HAL_DMA_XFER_CPLT_CB_ID,
-            &dma_receive_second_byte);
-    huart2.Instance->CR3 |= USART_CR3_DMAR;
-    HAL_DMA_Start_IT(&hdma_usart2_rx, (uint32_t) &huart2.Instance->DR,
-            (uint32_t) uart_rx_dma_buffer, RX_DMA_BUFFER_SIZE);
+  HAL_DMA_RegisterCallback(&hdma_usart2_rx, HAL_DMA_XFER_HALFCPLT_CB_ID, &dma_receive_first_byte);
+  HAL_DMA_RegisterCallback(&hdma_usart2_rx, HAL_DMA_XFER_CPLT_CB_ID, &dma_receive_second_byte);
+  huart2.Instance->CR3 |= USART_CR3_DMAR;
+  HAL_DMA_Start_IT(&hdma_usart2_rx, (uint32_t) &huart2.Instance->DR, (uint32_t) uart_rx_dma_buffer, RX_DMA_BUFFER_SIZE);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-    while (1) {
-//        HAL_UART_Transmit(&huart2, "hello", 5, 100);
-//        HAL_Delay(1000);
-        if (is_receiving_complete) {
-            if (strcmp(uart_rx_buffer, "adc") == 0) {
-                is_adc_command_received = true;
-            }
+  while (1)
+  {
+    if (is_receiving_complete)
+    {
+      if (strcmp(uart_rx_buffer, "adc") == 0)
+      {
+        is_adc_command_received = true;
+      }
 
-            else if (strncmp(uart_rx_buffer, "led", 3) == 0 && strlen(uart_rx_buffer) == 3) {
-                toggle_led1();
-            }
+      else if (strncmp(uart_rx_buffer, "led", 3) == 0 && strlen(uart_rx_buffer) == 3)
+      {
+        toggle_led1();
+      }
 
-            if (is_adc_command_received) {
-                usart2_transmit_adc_message(&pt);
-            }
-            usart2_transmit_formatted_string("You sent: %s\n\r",
-                               (char*) uart_rx_buffer);
-            uart_rx_buffer_index = 0;
-            is_receiving_complete = false;
-        }
-
+      if (is_adc_command_received)
+      {
+        usart2_transmit_adc_message(&pt);
+      }
+      usart2_transmit_formatted_string("You sent: %s\n\r", (char*) uart_rx_buffer);
+      uart_rx_buffer_index = 0;
+      is_receiving_complete = false;
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -337,41 +336,48 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void dma_receive_first_byte(DMA_HandleTypeDef *hdma) {
-    uint8_t rx_byte = uart_rx_dma_buffer[0];
-    add_byte_to_rx_buffer(rx_byte);
+void dma_receive_first_byte(DMA_HandleTypeDef *hdma)
+{
+  uint8_t rx_byte = uart_rx_dma_buffer[0];
+  add_byte_to_rx_buffer(rx_byte);
 }
 
-void dma_receive_second_byte(DMA_HandleTypeDef *hdma) {
-    uint8_t rx_byte = uart_rx_dma_buffer[1];
-    add_byte_to_rx_buffer(rx_byte);
+void dma_receive_second_byte(DMA_HandleTypeDef *hdma)
+{
+  uint8_t rx_byte = uart_rx_dma_buffer[1];
+  add_byte_to_rx_buffer(rx_byte);
 }
 
-void add_byte_to_rx_buffer(uint8_t rx_byte) {
-    if (rx_byte == '\r') {
-        is_receiving_complete = true;
-        uart_rx_buffer[uart_rx_buffer_index] = '\0';
-    } else {
-        uart_rx_buffer[uart_rx_buffer_index] = rx_byte;
-        uart_rx_buffer_index++;
-    }
+void add_byte_to_rx_buffer(uint8_t rx_byte)
+{
+  if (rx_byte == '\r')
+  {
+    is_receiving_complete = true;
+    uart_rx_buffer[uart_rx_buffer_index] = '\0';
+  }
+  else
+  {
+    uart_rx_buffer[uart_rx_buffer_index] = rx_byte;
+    uart_rx_buffer_index++;
+  }
 }
 
-void usart2_transmit_formatted_string(const char *format, ...) {
-    va_list args;
-    va_start(args, format);
-    vsprintf((char*) uart_tx_buffer, format, args);
-    HAL_UART_Transmit(&huart2, uart_tx_buffer, strlen(uart_tx_buffer), 100);
+void usart2_transmit_formatted_string(const char *format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  vsprintf((char*) uart_tx_buffer, format, args);
+  HAL_UART_Transmit(&huart2, uart_tx_buffer, strlen(uart_tx_buffer), 100);
 }
 
-
-
-void toggle_led1() {
-    HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_12);
+void toggle_led1()
+{
+  HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_12);
 }
 
-bool adc_conversion_ended(ADC_HandleTypeDef* hadc) {
-    return __HAL_ADC_GET_FLAG(hadc, ADC_FLAG_EOC);
+bool adc_conversion_ended(ADC_HandleTypeDef* hadc)
+{
+  return __HAL_ADC_GET_FLAG(hadc, ADC_FLAG_EOC);
 }
 
 HAL_StatusTypeDef HAL_ADC_PollForConversion_custom(ADC_HandleTypeDef* hadc, uint32_t Timeout)
@@ -419,10 +425,11 @@ HAL_StatusTypeDef HAL_ADC_PollForConversion_custom(ADC_HandleTypeDef* hadc, uint
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-    /* User can add his own implementation to report the HAL error return state */
-    __disable_irq();
-    while (1) {
-    }
+  /* User can add his own implementation to report the HAL error return state */
+  __disable_irq();
+  while (1)
+  {
+  }
   /* USER CODE END Error_Handler_Debug */
 }
 
