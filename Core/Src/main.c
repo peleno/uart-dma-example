@@ -22,11 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <string.h>
-#include <stdio.h>
-#include <stdbool.h>
-#include <stdarg.h>
-#include "pt.h"
+#include "parser.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,9 +32,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define TX_BUFFER_SIZE 30
-#define RX_BUFFER_SIZE 10
-#define RX_DMA_BUFFER_SIZE 2
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -53,15 +47,7 @@ UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_rx;
 
 /* USER CODE BEGIN PV */
-uint8_t uart_rx_buffer[RX_BUFFER_SIZE] = { 0 };
-uint8_t uart_rx_buffer_index = 0;
-uint8_t uart_tx_buffer[TX_BUFFER_SIZE] = { 0 };
 
-uint8_t uart_rx_dma_buffer[RX_DMA_BUFFER_SIZE] = { 0 };
-
-volatile bool is_receiving_complete = false;
-volatile bool is_adc_command_received = false;
-struct pt pt;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -71,35 +57,12 @@ static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
-void dma_receive_first_byte(DMA_HandleTypeDef *hdma);
-void dma_receive_second_byte(DMA_HandleTypeDef *hdma);
-void add_byte_to_rx_buffer(uint8_t rx_byte);
-void usart2_transmit_formatted_string(const char *format, ...);
-void toggle_led1();
-bool adc_conversion_ended(ADC_HandleTypeDef* hadc);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-PT_THREAD(usart2_transmit_adc_message(struct pt *pt))
-{
-  PT_BEGIN(pt);
-  uint16_t raw_adc_value;
-  HAL_ADC_Start(&hadc1);
-  // HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-  PT_WAIT_UNTIL(pt, adc_conversion_ended(&hadc1));
 
-  /* Clear regular group conversion flag */
-  __HAL_ADC_CLEAR_FLAG(&hadc1, ADC_FLAG_STRT | ADC_FLAG_EOC);
-
-  /* Update ADC state machine */
-  SET_BIT(hadc1.State, HAL_ADC_STATE_REG_EOC);
-
-  raw_adc_value = HAL_ADC_GetValue(&hadc1);
-  usart2_transmit_formatted_string("Raw ADC value: %hu\n\r", raw_adc_value);
-  is_adc_command_received = false;
-  PT_END(pt);
-}
 /* USER CODE END 0 */
 
 /**
@@ -134,41 +97,18 @@ int main(void)
   MX_USART2_UART_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
-  PT_INIT(&pt);
-  HAL_DMA_RegisterCallback(&hdma_usart2_rx, HAL_DMA_XFER_HALFCPLT_CB_ID, &dma_receive_first_byte);
-  HAL_DMA_RegisterCallback(&hdma_usart2_rx, HAL_DMA_XFER_CPLT_CB_ID, &dma_receive_second_byte);
-  huart2.Instance->CR3 |= USART_CR3_DMAR;
-  HAL_DMA_Start_IT(&hdma_usart2_rx, (uint32_t) &huart2.Instance->DR, (uint32_t) uart_rx_dma_buffer, RX_DMA_BUFFER_SIZE);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    if (is_receiving_complete)
-    {
-      if (strcmp(uart_rx_buffer, "adc") == 0)
-      {
-        is_adc_command_received = true;
-      }
-
-      else if (strncmp(uart_rx_buffer, "led", 3) == 0 && strlen(uart_rx_buffer) == 3)
-      {
-        toggle_led1();
-      }
-
-      if (is_adc_command_received)
-      {
-        usart2_transmit_adc_message(&pt);
-      }
-      usart2_transmit_formatted_string("You sent: %s\n\r", (char*) uart_rx_buffer);
-      uart_rx_buffer_index = 0;
-      is_receiving_complete = false;
-    }
+  parse();
+//  while (1)
+//  {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    }
+//  }
   /* USER CODE END 3 */
 }
 
@@ -336,86 +276,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void dma_receive_first_byte(DMA_HandleTypeDef *hdma)
-{
-  uint8_t rx_byte = uart_rx_dma_buffer[0];
-  add_byte_to_rx_buffer(rx_byte);
-}
 
-void dma_receive_second_byte(DMA_HandleTypeDef *hdma)
-{
-  uint8_t rx_byte = uart_rx_dma_buffer[1];
-  add_byte_to_rx_buffer(rx_byte);
-}
-
-void add_byte_to_rx_buffer(uint8_t rx_byte)
-{
-  if (rx_byte == '\r')
-  {
-    is_receiving_complete = true;
-    uart_rx_buffer[uart_rx_buffer_index] = '\0';
-  }
-  else
-  {
-    uart_rx_buffer[uart_rx_buffer_index] = rx_byte;
-    uart_rx_buffer_index++;
-  }
-}
-
-void usart2_transmit_formatted_string(const char *format, ...)
-{
-  va_list args;
-  va_start(args, format);
-  vsprintf((char*) uart_tx_buffer, format, args);
-  HAL_UART_Transmit(&huart2, uart_tx_buffer, strlen(uart_tx_buffer), 100);
-}
-
-void toggle_led1()
-{
-  HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_12);
-}
-
-bool adc_conversion_ended(ADC_HandleTypeDef* hadc)
-{
-  return __HAL_ADC_GET_FLAG(hadc, ADC_FLAG_EOC);
-}
-
-HAL_StatusTypeDef HAL_ADC_PollForConversion_custom(ADC_HandleTypeDef* hadc, uint32_t Timeout)
-{
-  /* Check End of conversion flag */
-  while(!(__HAL_ADC_GET_FLAG(hadc, ADC_FLAG_EOC)))
-  {
-  }
-
-  /* Clear regular group conversion flag */
-  __HAL_ADC_CLEAR_FLAG(hadc, ADC_FLAG_STRT | ADC_FLAG_EOC);
-
-  /* Update ADC state machine */
-  SET_BIT(hadc->State, HAL_ADC_STATE_REG_EOC);
-
-  /* Determine whether any further conversion upcoming on group regular       */
-  /* by external trigger, continuous mode or scan sequence on going.          */
-  /* Note: On STM32F4, there is no independent flag of end of sequence.       */
-  /*       The test of scan sequence on going is done either with scan        */
-  /*       sequence disabled or with end of conversion flag set to            */
-  /*       of end of sequence.                                                */
-  if(ADC_IS_SOFTWARE_START_REGULAR(hadc)                   &&
-     (hadc->Init.ContinuousConvMode == DISABLE)            &&
-     (HAL_IS_BIT_CLR(hadc->Instance->SQR1, ADC_SQR1_L) ||
-      HAL_IS_BIT_CLR(hadc->Instance->CR2, ADC_CR2_EOCS)  )   )
-  {
-    /* Set ADC state */
-    CLEAR_BIT(hadc->State, HAL_ADC_STATE_REG_BUSY);
-
-    if (HAL_IS_BIT_CLR(hadc->State, HAL_ADC_STATE_INJ_BUSY))
-    {
-      SET_BIT(hadc->State, HAL_ADC_STATE_READY);
-    }
-  }
-
-  /* Return ADC state */
-  return HAL_OK;
-}
 /* USER CODE END 4 */
 
 /**
