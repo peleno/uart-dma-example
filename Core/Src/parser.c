@@ -15,6 +15,8 @@
 #include "adc_driver.h"
 #include "led_driver.h"
 #include "main.h"
+#include "led_command.h"
+#include "command.h"
 
 
 #define TX_BUFFER_SIZE 30
@@ -37,10 +39,16 @@ static void usart_transmit_formatted_string(UART_HandleTypeDef *huart2, const ch
 static void dma_init_interrupts();
 static void usart2_transmit_adc_message(struct pt *pt);
 
+
 void parse()
 {
   PT_INIT(&pt);
   dma_init_interrupts();
+  command_t *command_p;
+  led_command_t led_command;
+  led_command_constructor(&led_command);
+  command_p = &led_command.super;
+
 
   while (1)
   {
@@ -53,14 +61,15 @@ void parse()
 
       else if (strcmp(uart_rx_buffer, "led") == 0)
       {
-        toggle_led1();
+//        toggle_led1();
+        command_execute(command_p);
       }
 
       if (is_adc_command_received)
       {
         usart2_transmit_adc_message(&pt);
       }
-      usart_transmit_formatted_string(&huart2, "You sent: %s\n\r", (char*) uart_rx_buffer);
+      usart_transmit_formatted_string(&huart2, "You sent: %s\n\r", uart_rx_buffer);
       uart_rx_buffer_index = 0;
       is_receiving_complete = false;
     }

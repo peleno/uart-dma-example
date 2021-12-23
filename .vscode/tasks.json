@@ -1,0 +1,35 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build all",
+            "group": "build",
+            "type": "shell",
+            "command": "make",
+            "args": ["-j8", "all"],
+            "options": {
+                "cwd": "${workspaceFolder}/Debug"
+            }
+        },
+        {
+            "label": "Build clean",
+            "group": "build",
+            "type": "shell",
+            "command": "make",
+            "args": ["clean"],
+            "options": {
+                "cwd": "${workspaceFolder}/Debug"
+            }
+        },
+        {
+            "label": "Flash",
+            "group": "build",
+            "type": "shell",
+            "command": "make",
+            "args": ["flash"],
+            "options": {
+                "cwd": "${workspaceFolder}/Debug"
+            }
+        }
+    ]
+}
