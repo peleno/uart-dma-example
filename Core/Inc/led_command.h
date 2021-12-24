@@ -11,9 +11,9 @@
 #include "command.h"
 
 typedef struct {
-  command_t super;
+    command_t super;
 } led_command_t;
 
-void led_command_constructor(led_command_t * const self);
+void led_command_constructor(led_command_t *const self);
 
 #endif /* INC_LED_COMMAND_H_ */

@@ -8,19 +8,16 @@
 #include "adc_command.h"
 #include "adc_driver.h"
 
+static void adc_command_execute(command_t *const self);
 
-static void adc_command_execute(command_t * const self);
-
-void adc_command_constructor(adc_command_t * const self)
+void adc_command_constructor(adc_command_t *const self)
 {
-  static command_vtbl_t const vtbl = {
-      .execute = &adc_command_execute
-  };
+    static command_vtbl_t const vtbl = { .execute = &adc_command_execute };
 
-  self->super.vptr = &vtbl;
+    self->super.vptr = &vtbl;
 }
 
-static void adc_command_execute(command_t * const self)
+static void adc_command_execute(command_t *const self)
 {
 
 }

@@ -10,16 +10,14 @@
 
 typedef struct command_vtbl command_vtbl_t;
 
-typedef struct
-{
-  command_vtbl_t const *vptr;
+typedef struct {
+    command_vtbl_t const *vptr;
 } command_t;
 
-struct command_vtbl
-{
-  void (*execute)(command_t * const self);
+struct command_vtbl {
+    void (*execute)(command_t *const self);
 };
 
-void command_execute(command_t * const self);
+void command_execute(command_t *const self);
 
 #endif /* INC_COMMAND_H_ */

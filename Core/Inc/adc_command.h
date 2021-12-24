@@ -10,11 +10,10 @@
 
 #include "command.h"
 
-typedef struct
-{
-  command_t super;
+typedef struct {
+    command_t super;
 } adc_command_t;
 
-void adc_command_constructor(adc_command_t * const self);
+void adc_command_constructor(adc_command_t *const self);
 
 #endif /* INC_ADC_COMMAND_H_ */

@@ -5,10 +5,9 @@
  *      Author: andrii.peleno
  */
 
-
 #include "command.h"
 
-void command_execute(command_t * const self)
+void command_execute(command_t *const self)
 {
-  self->vptr->execute(self);
+    self->vptr->execute(self);
 }

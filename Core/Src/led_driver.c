@@ -7,6 +7,7 @@
 
 #include "stm32f4xx_hal.h"
 
-void toggle_led1() {
-  HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_12);
+void toggle_led1()
+{
+    HAL_GPIO_TogglePin(GPIOD, GPIO_PIN_12);
 }
