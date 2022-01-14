@@ -70,5 +70,3 @@ extern DMA_HandleTypeDef hdma_usart2_rx;
 #endif
 
 #endif /* __MAIN_H */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
