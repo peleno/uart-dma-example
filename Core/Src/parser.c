@@ -36,6 +36,11 @@ static void usart_transmit_formatted_string(UART_HandleTypeDef *huart2, const ch
 static void dma_init_interrupts();
 static void usart2_transmit_adc_message(struct pt *pt);
 
+extern ADC_HandleTypeDef hadc1;
+
+extern UART_HandleTypeDef huart3;
+extern DMA_HandleTypeDef hdma_usart3_rx;
+
 void parse()
 {
     PT_INIT(&pt);
@@ -44,7 +49,7 @@ void parse()
     led_command_t led_command;
     led_command_constructor(&led_command);
     command_p = &led_command.super;
-
+    usart_transmit_formatted_string(&huart3, "You sent: %s\n\r", uart_rx_buffer);
     while (1) {
         if (is_receiving_complete) {
             if (strcmp(uart_rx_buffer, "adc") == 0) {
@@ -59,7 +64,7 @@ void parse()
             if (is_adc_command_received) {
                 usart2_transmit_adc_message(&pt);
             }
-            usart_transmit_formatted_string(&huart2, "You sent: %s\n\r", uart_rx_buffer);
+            usart_transmit_formatted_string(&huart3, "You sent: %s\n\r", uart_rx_buffer);
             uart_rx_buffer_index = 0;
             is_receiving_complete = false;
         }
@@ -72,18 +77,18 @@ static void usart2_transmit_adc_message(struct pt *pt)
     raw_value_pointer = NULL;
     adc_read_raw_value(pt, &hadc1, raw_value_pointer);
     uint8_t raw_adc_value = *raw_value_pointer;
-    usart_transmit_formatted_string(&huart2, "Raw ADC value: %hu\n\r", raw_adc_value);
+    usart_transmit_formatted_string(&huart3, "Raw ADC value: %hu\n\r", raw_adc_value);
     is_adc_command_received = false;
 }
 
 static void dma_init_interrupts()
 {
-    HAL_DMA_RegisterCallback(&hdma_usart2_rx, HAL_DMA_XFER_HALFCPLT_CB_ID, &dma_receive_first_byte);
-    HAL_DMA_RegisterCallback(&hdma_usart2_rx, HAL_DMA_XFER_CPLT_CB_ID, &dma_receive_second_byte);
-    huart2.Instance->CR3 |= USART_CR3_DMAR;
+    HAL_DMA_RegisterCallback(&hdma_usart3_rx, HAL_DMA_XFER_HALFCPLT_CB_ID, &dma_receive_first_byte);
+    HAL_DMA_RegisterCallback(&hdma_usart3_rx, HAL_DMA_XFER_CPLT_CB_ID, &dma_receive_second_byte);
+    huart3.Instance->CR3 |= USART_CR3_DMAR;
 
-    HAL_DMA_Start_IT(&hdma_usart2_rx,
-                     (uint32_t) &huart2.Instance->DR,
+    HAL_DMA_Start_IT(&hdma_usart3_rx,
+                     (uint32_t) &huart3.Instance->DR,
                      (uint32_t) uart_rx_dma_buffer,
                      RX_DMA_BUFFER_SIZE);
 }
