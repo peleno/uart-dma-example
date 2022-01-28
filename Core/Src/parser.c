@@ -73,10 +73,14 @@ void parse()
 
 static void usart2_transmit_adc_message(struct pt *pt)
 {
-    uint8_t *raw_value_pointer;
-    raw_value_pointer = NULL;
-    adc_read_raw_value(pt, &hadc1, raw_value_pointer);
-    uint8_t raw_adc_value = *raw_value_pointer;
+    // uint8_t *raw_value_pointer;
+    // raw_value_pointer = NULL;
+    // adc_read_raw_value(pt, &hadc1, raw_value_pointer);
+    // uint8_t raw_adc_value = *raw_value_pointer;
+
+    HAL_ADC_Start(&hadc1);
+    HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+    uint8_t raw_adc_value = HAL_ADC_GetValue(&hadc1);
     usart_transmit_formatted_string(&huart3, "Raw ADC value: %hu\n\r", raw_adc_value);
     is_adc_command_received = false;
 }

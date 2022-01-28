@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "adc_driver.h": "c"
+        "adc_driver.h": "c",
+        "hd44780.h": "c"
     }
 }

@@ -24,6 +24,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "parser.h"
+#include "hd44780.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -54,6 +55,13 @@ const osThreadAttr_t parser_task_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
+/* Definitions for display_task */
+osThreadId_t display_taskHandle;
+const osThreadAttr_t display_task_attributes = {
+  .name = "display_task",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -65,6 +73,7 @@ static void MX_ADC1_Init(void);
 static void MX_DMA_Init(void);
 static void MX_USART3_UART_Init(void);
 void parse_commands(void *argument);
+void task_display(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -108,6 +117,9 @@ int main(void)
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
+  lcdInit();
+  lcdClrScr();
+  lcdPuts("STM32F103RB v16\nHD44780 4bit");
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -132,6 +144,9 @@ int main(void)
   /* Create the thread(s) */
   /* creation of parser_task */
   parser_taskHandle = osThreadNew(parse_commands, NULL, &parser_task_attributes);
+
+  /* creation of display_task */
+  display_taskHandle = osThreadNew(task_display, NULL, &display_task_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -306,10 +321,24 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOE, LCD_RS_Pin|LCD_RW_Pin|LCD_E_Pin|LCD_D4_Pin
+                          |LCD_D5_Pin|LCD_D6_Pin|LCD_D7_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : LCD_RS_Pin LCD_RW_Pin LCD_E_Pin LCD_D4_Pin
+                           LCD_D5_Pin LCD_D6_Pin LCD_D7_Pin */
+  GPIO_InitStruct.Pin = LCD_RS_Pin|LCD_RW_Pin|LCD_E_Pin|LCD_D4_Pin
+                          |LCD_D5_Pin|LCD_D6_Pin|LCD_D7_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PD12 */
   GPIO_InitStruct.Pin = GPIO_PIN_12;
@@ -340,6 +369,32 @@ void parse_commands(void *argument)
     parse();
   }
   /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_task_display */
+/**
+* @brief Function implementing the display_task thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_task_display */
+void task_display(void *argument)
+{
+  /* USER CODE BEGIN task_display */
+  char str[17] = {};
+  float pi = 3.14;
+  int t = 123;
+  unsigned char men1[FONT_HEIGHT] = {0x0e,0x0e,0x04,0x1f,0x04,0x1a,0x01,0x00};
+  unsigned char men2[FONT_HEIGHT] = {0x07,0x07,0x0a,0x07,0x02,0x05,0x09,0x00};
+  // lcdInit();
+  // lcdClrScr();
+  // lcdPuts("STM32F103RB v16\nHD44780 4bit");
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END task_display */
 }
 
 /**
