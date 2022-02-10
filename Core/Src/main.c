@@ -25,6 +25,7 @@
 /* USER CODE BEGIN Includes */
 #include "parser.h"
 #include "hd44780.h"
+#include "serial_listener.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -118,8 +119,6 @@ int main(void)
     /* USER CODE BEGIN 2 */
 
     lcdInit();
-    lcdClrScr();
-    lcdPuts("STM32F103RB v16\nHD44780 4bit");
     /* USER CODE END 2 */
 
     /* Init scheduler */
@@ -284,7 +283,6 @@ static void MX_USART3_UART_Init(void)
         Error_Handler();
     }
     /* USER CODE BEGIN USART3_Init 2 */
-
     /* USER CODE END USART3_Init 2 */
 
 }
@@ -360,8 +358,9 @@ void parse_commands(void *argument)
 {
     /* USER CODE BEGIN 5 */
     /* Infinite loop */
+    parse();
     for (;;) {
-        parse();
+        
     }
     /* USER CODE END 5 */
 }
