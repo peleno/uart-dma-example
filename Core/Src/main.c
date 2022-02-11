@@ -23,9 +23,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "parser.h"
 #include "hd44780.h"
 #include "serial_listener.h"
+#include "commands_manager.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -49,12 +49,12 @@ ADC_HandleTypeDef hadc1;
 UART_HandleTypeDef huart3;
 DMA_HandleTypeDef hdma_usart3_rx;
 
-/* Definitions for parser_task */
-osThreadId_t parser_taskHandle;
-const osThreadAttr_t parser_task_attributes = {
-    .name = "parser_task", 
+/* Definitions for serial_listener */
+osThreadId_t serial_listenerHandle;
+const osThreadAttr_t serial_listener_attributes = {
+    .name = "serial_listener",
     .stack_size = 128 * 4,
-    .priority = (osPriority_t) osPriorityNormal, 
+    .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for display_task */
 osThreadId_t display_taskHandle;
@@ -73,8 +73,8 @@ static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_DMA_Init(void);
 static void MX_USART3_UART_Init(void);
-void parse_commands(void *argument);
-void task_display(void *argument);
+void serial_listen(void *argument);
+void lcd_display(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -141,11 +141,11 @@ int main(void)
     /* USER CODE END RTOS_QUEUES */
 
     /* Create the thread(s) */
-    /* creation of parser_task */
-    parser_taskHandle = osThreadNew(parse_commands, NULL, &parser_task_attributes);
+    /* creation of serial_listener */
+    serial_listenerHandle = osThreadNew(serial_listen, NULL, &serial_listener_attributes);
 
     /* creation of display_task */
-    display_taskHandle = osThreadNew(task_display, NULL, &display_task_attributes);
+    display_taskHandle = osThreadNew(lcd_display, NULL, &display_task_attributes);
 
     /* USER CODE BEGIN RTOS_THREADS */
     /* add threads, ... */
@@ -347,42 +347,34 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE END 4 */
 
-/* USER CODE BEGIN Header_parse_commands */
+/* USER CODE BEGIN Header_serial_listen */
 /**
- * @brief  Function implementing the parser_task thread.
+ * @brief  Function implementing the serial_listener thread.
  * @param  argument: Not used
  * @retval None
  */
-/* USER CODE END Header_parse_commands */
-void parse_commands(void *argument)
+/* USER CODE END Header_serial_listen */
+void serial_listen(void *argument)
 {
     /* USER CODE BEGIN 5 */
     /* Infinite loop */
-    parse();
+    serial_listener_start(process_command);
     for (;;) {
-        
+
     }
     /* USER CODE END 5 */
 }
 
-/* USER CODE BEGIN Header_task_display */
+/* USER CODE BEGIN Header_lcd_display */
 /**
  * @brief Function implementing the display_task thread.
  * @param argument: Not used
  * @retval None
  */
-/* USER CODE END Header_task_display */
-void task_display(void *argument)
+/* USER CODE END Header_lcd_display */
+void lcd_display(void *argument)
 {
-    /* USER CODE BEGIN task_display */
-    char str[17] = {};
-    float pi = 3.14;
-    int t = 123;
-    unsigned char men1[FONT_HEIGHT] = { 0x0e, 0x0e, 0x04, 0x1f, 0x04, 0x1a, 0x01, 0x00 };
-    unsigned char men2[FONT_HEIGHT] = { 0x07, 0x07, 0x0a, 0x07, 0x02, 0x05, 0x09, 0x00 };
-    // lcdInit();
-    // lcdClrScr();
-    // lcdPuts("STM32F103RB v16\nHD44780 4bit");
+    /* USER CODE BEGIN lcd_display */
     /* Infinite loop */
     for (;;) {
         HAL_ADC_Start(&hadc1);
@@ -393,7 +385,7 @@ void task_display(void *argument)
         lcdItos(raw_adc_value);
         osDelay(500);
     }
-    /* USER CODE END task_display */
+    /* USER CODE END lcd_display */
 }
 
 /**
@@ -447,3 +439,4 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
+
